@@ -10,4 +10,5 @@ export MPLBACKEND="agg"
 
 conda activate pydda_env
 cd /lcrc/group/earthscience/rjackson/e3sm_nsa/scripts
-python make_daily_microbase_product.py 2018 $SLURM_ARRAY_TASK_ID
+python make_microbase_old_daily.py 2007 $SLURM_ARRAY_TASK_ID
+

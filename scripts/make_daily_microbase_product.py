@@ -22,6 +22,15 @@ def do_bootstrapping(file_name):
     first_time = ds['base_time']
     
     output_ds = {}
+    
+    mpc_occurrence = xr.where(np.logical_and(ds["Avg_Retrieved_LWC"] > 1e-4, ds["Avg_Retrieved_IWC"] > 1e-1), 1, 0).sum(
+        dim='time').values[np.newaxis, :]
+    num_clouds = xr.where(np.logical_or(ds["Avg_Retrieved_LWC"] > 1e-4, ds["Avg_Retrieved_IWC"] > 1e-1), 1, 0).sum(dim='time').values[np.newaxis, :]
+    mpc_occurrence = mpc_occurrence / num_clouds
+    mpc_occurrence = xr.DataArray(mpc_occurrence, dims=('time', 'nheights'))
+    mpc_occurrence.attrs["long_name"] = "Mixed phase cloud occurrence"
+    mpc_occurrence.attrs["units"] = "1"
+    output_ds["mpc_occurrence"] = mpc_occurrence
     # Do mean and confidence interval calculations
     for var in ds.variables:
         if ds[var].dims == ('time', 'nheights') and not var == "CloudPhaseMask":
@@ -176,9 +185,5 @@ if __name__ == "__main__":
     results = list(map(do_bootstrapping, file_list))
     #bag = db.from_sequence(file_list)
     #results = bag.map(do_bootstrapping).compute()
-    out_ds = xr.concat(results, dim='time')
+    out_ds = xr.concat(results, dim='time').sortby('time')
     out_ds.to_netcdf('daily_product/microbase_%s.nc' % date_str)
-
-
-
-
