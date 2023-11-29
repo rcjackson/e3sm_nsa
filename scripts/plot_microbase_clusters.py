@@ -26,6 +26,23 @@ print(microbase_avgs)
 microbase_avgs["cluster"] = nsa_cluster["class"]
 microbase_avgs["mpc_occurrence"] = microbase_avgs["mpc_occurrence"]
 microbase_avgs["nheights"] = ds["Heights"] / 1000
+microbase_avgs["pct_mixed"] = microbase_avgs["pct_mixed"]
+microbase_avgs["pct_ice"] = microbase_avgs["pct_ice"]
+microbase_avgs["pct_liquid"] = microbase_avgs["pct_liquid"]
+microbase_avgs["which_phase"] = xr.DataArray(np.argmax(np.stack([microbase_avgs["pct_mixed"], 
+                                                                 microbase_avgs["pct_ice"] + microbase_avgs["pct_snow"], 
+                                                                 microbase_avgs["pct_liquid"] + microbase_avgs["pct_rain"],
+                                                                 microbase_avgs["pct_clear"]]),
+                                          axis=0), dims=microbase_avgs["pct_liquid"].dims)
+
+
+microbase_avgs["which_phase"] = microbase_avgs["which_phase"].where(np.isfinite(microbase_avgs["pct_mixed"]), drop=False)
+#microbase_avgs["which_phase"] = microbase_avgs["which_phase"].where(np.logical_and(np.isfinite(microbase_avgs["pct_mixed"]), 
+#                                                                                   microbase_avgs["which_phase"] < 3), drop=True)
+microbase_avgs["is_mixed"] = xr.where(microbase_avgs["which_phase"] == 0, 100, 0)
+microbase_avgs["is_ice"] = xr.where(microbase_avgs["which_phase"] == 1, 100, 0)
+microbase_avgs["is_liquid"] = xr.where(microbase_avgs["which_phase"] == 2, 100, 0)
+microbase_avgs["is_clear"] = xr.where(microbase_avgs["which_phase"] == 3, 100, 0)
 microbase_avgs["Avg_Retrieved_LWC"] = microbase_avgs["Avg_Retrieved_LWC"].where(microbase_avgs.pct_clear < 0.95)
 microbase_avgs["Avg_Retrieved_IWC"] = microbase_avgs["Avg_Retrieved_IWC"].where(microbase_avgs.pct_clear < 0.95)
 microbase_avgs["Avg_Retrieved_IWC"] = microbase_avgs["Avg_Retrieved_IWC"].where(microbase_avgs.Avg_Retrieved_IWC >= 0.001)
@@ -36,20 +53,24 @@ microbase_avgs["season"] = microbase_avgs["time"].dt.season
 microbase_groupby = microbase_avgs.groupby("time.season").mean(skipna=True)
 print(microbase_groupby)
 ds.close()
-fig, ax = plt.subplots(4, 4, figsize=(22, 20))
-colors = ['b', 'g', 'k', 'c']
+fig, ax = plt.subplots(4, 5, figsize=(12, 12))
+colors = ['b', 'g', 'k', 'r']
 i = 0
 def cluster_mean(x, cluster_no):
     return x.where(x.cluster == cluster_no).mean("time", skipna=True)
 
+def cluster_sum(x, cluster_no):
+    return x.where(x.cluster == cluster_no).sum("time", skipna=True)
+
 for cluster in [1, 2, 3, 4]:
     cmean = lambda x: cluster_mean(x, cluster)
+    csum = lambda x: cluster_sum(x, cluster)
     microbase_groupby = microbase_avgs.groupby("season").apply(cmean)
      
     print(microbase_groupby)
     for i, season in enumerate(["DJF", "MAM", "JJA", "SON"]):
         microbase_groupby['Avg_Retrieved_LWC'].sel(season=season).T.plot(
-            y="nheights", ax=ax[i, 0], label=str(cluster), color=colors[cluster - 1])
+            y="nheights", ax=ax[i, 0], label=str(cluster), linewidth=2, color=colors[cluster - 1])
 
         ax[i, 0].set_xlabel('LWC [g $m^{-3}$]')
         ax[i, 0].set_ylabel('Height [km]')
@@ -59,36 +80,42 @@ for cluster in [1, 2, 3, 4]:
         ax[i, 0].set_title(season)
         ax[i, 0].legend()
     
-        microbase_groupby['Avg_Retrieved_IWC'].sel(season=season).T.plot(
-            y="nheights", ax=ax[i, 1], label=str(cluster), color=colors[cluster - 1])
-        ax[i, 1].set_xlabel('IWC [g $m^{-3}$]')
+        microbase_groupby['is_liquid'].sel(season=season).T.plot(
+            y="nheights", ax=ax[i, 1], label=str(cluster), linewidth=2, color=colors[cluster - 1])
+        ax[i, 1].set_xlabel('% of days liquid-dominated')
         ax[i, 1].set_ylabel('Height [km]')
         ax[i, 1].set_title('')
         ax[i, 1].set_ylim([0, 10])
-        ax[i, 1].set_xlim([0, 0.03])
+        ax[i, 1].set_xlim([0, 100])
         ax[i, 1].set_title(season)
-
-        (1 - microbase_groupby['pct_clear']).sel(season=season).T.plot(
-            y="nheights", ax=ax[i, 2], label=str(cluster), color=colors[cluster - 1])
-        ax[i, 2].set_xlabel('Cloud fraction')
+        
+        microbase_groupby['is_ice'].sel(season=season).T.plot(
+            y="nheights", ax=ax[i, 2], label=str(cluster), linewidth=2, color=colors[cluster - 1])
+        ax[i, 2].set_xlabel('% of days ice-dominated')
         ax[i, 2].set_ylabel('Height [km]')
         ax[i, 2].set_title('')
-        ax[i, 2].set_xlim([0, 1])
         ax[i, 2].set_ylim([0, 10])
+        ax[i, 2].set_xlim([0, 100])
         ax[i, 2].set_title(season)
         
-        microbase_groupby['mpc_occurrence'].sel(season=season).T.plot(
-            y="nheights", ax=ax[i, 3], label=str(cluster), color=colors[cluster - 1])
-        ax[i, 3].set_xlabel('MPC occurrence')
+        microbase_groupby['is_mixed'].sel(season=season).T.plot(
+            y="nheights", ax=ax[i, 3], label=str(cluster), linewidth=2, color=colors[cluster - 1])
+        ax[i, 3].set_xlabel('% of days mixed-dominated')
         ax[i, 3].set_ylabel('Height [km]')
         ax[i, 3].set_title('')
         ax[i, 3].set_ylim([0, 10])
-        ax[i, 3].set_xlim([0, 1])
+        ax[i, 3].set_xlim([0, 100])
         ax[i, 3].set_title(season)
+        microbase_groupby['is_clear'].sel(season=season).T.plot(
+            y="nheights", ax=ax[i, 4], label=str(cluster), linewidth=2, color=colors[cluster - 1])
+        ax[i, 4].set_xlabel('% of days clear-dominated')
+        ax[i, 4].set_ylabel('Height [km]')
+        ax[i, 4].set_title('')
+        ax[i, 4].set_xlim([0, 100])
+        ax[i, 4].set_ylim([0, 10])
+        ax[i, 4].set_title(season)
 
-
-        
-fig.savefig('mean_stats.png', bbox_inches='tight')
-print(microbase_groupby['Avg_Retrieved_LWC'].values)
+fig.tight_layout()
+fig.savefig('mean_stats_obs_days_liquid.png', bbox_inches='tight')
 microbase_avgs.close()
 nsa_cluster.close()

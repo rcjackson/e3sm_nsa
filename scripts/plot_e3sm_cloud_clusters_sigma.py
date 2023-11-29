@@ -90,11 +90,11 @@ e3sm_avgs["pct_clear"] = xr.DataArray(data=clear_array_interp,
     dims=["time", "height"],
     coords={"time": e3sm_avgs.time.values, "height": heights}) 
 e3sm_avgs["season"] = e3sm_avgs["time"].dt.season
-
+e3sm_avgs["height"] = e3sm_avgs["height"] / 1e3
 e3sm_groupby = e3sm_avgs.groupby("time.season").mean(skipna=True)
 print(e3sm_groupby)
-fig, ax = plt.subplots(4, 4, figsize=(22, 20))
-colors = ['b', 'g', 'k', 'c']
+fig, ax = plt.subplots(4, 4, figsize=(12, 10))
+colors = ['b', 'g', 'k', 'r']
 i = 0
 def cluster_mean(x, cluster_no):
     return x.where(x.cluster == cluster_no).mean("time", skipna=True)
@@ -107,7 +107,7 @@ for cluster in [1, 2, 3, 4]:
     print(e3sm_groupby)
     for i, season in enumerate(["DJF", "MAM", "JJA", "SON"]):
         e3sm_groupby['Avg_Retrieved_LWC'].sel(season=season).T.plot(
-            ax=ax[i, 0], y="height", label=str(cluster), color=colors[cluster - 1])
+            ax=ax[i, 0], y="height", label=str(cluster), linewidth=2, color=colors[cluster - 1])
 
         ax[i, 0].set_xlabel('LWC [g $m^{-3}$]')
         ax[i, 0].set_ylabel('Height [km]')
@@ -118,7 +118,7 @@ for cluster in [1, 2, 3, 4]:
         ax[i, 0].legend()
     
         e3sm_groupby['Avg_Retrieved_IWC'].sel(season=season).T.plot(
-            ax=ax[i, 1], y="height", label=str(cluster), color=colors[cluster - 1])
+            ax=ax[i, 1], y="height", label=str(cluster), linewidth=2, color=colors[cluster - 1])
         ax[i, 1].set_xlabel('IWC [g $m^{-3}$]')
         ax[i, 1].set_ylabel('Height [km]')
         ax[i, 1].set_title('')
@@ -127,7 +127,7 @@ for cluster in [1, 2, 3, 4]:
         ax[i, 1].set_title(season)
 
         (1 - e3sm_groupby['pct_clear']).sel(season=season).T.plot(
-            ax=ax[i, 2], y="height", label=str(cluster), color=colors[cluster - 1])
+            ax=ax[i, 2], y="height", label=str(cluster), linewidth=2, color=colors[cluster - 1])
         ax[i, 2].set_xlabel('Cloud fraction')
         ax[i, 2].set_ylabel('Height [km]')
         ax[i, 2].set_title('')
@@ -136,7 +136,7 @@ for cluster in [1, 2, 3, 4]:
         ax[i, 2].set_title(season)
         
         e3sm_groupby['mpc_occurrence'].sel(season=season).T.plot(
-            ax=ax[i, 3], y="height", label=str(cluster), color=colors[cluster - 1])
+            ax=ax[i, 3], y="height", label=str(cluster), linewidth=2, color=colors[cluster - 1])
         ax[i, 3].set_xlabel('MPC occurrence')
         ax[i, 3].set_ylabel('Height [km]')
         ax[i, 3].set_title('')

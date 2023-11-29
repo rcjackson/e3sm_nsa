@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH -N 1        
-#SBATCH --time=2:00:00
+#SBATCH --time=4:00:00
 #SBATCH --job-name=cluster_lidar
 #SBATCH -n 1
 #SBATCH --mail-user=rjackson@anl.gov
@@ -10,5 +10,4 @@ export MPLBACKEND="agg"
 
 conda activate pydda_env
 cd /lcrc/group/earthscience/rjackson/e3sm_nsa/scripts
-python make_microbase_old_daily.py 2007 $SLURM_ARRAY_TASK_ID
-
+python make_nsa_interpsonde_avgs.py
